@@ -1,0 +1,72 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
+from imblearn.over_sampling import SMOTE
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+# Load dataset
+df = pd.read_csv("/content/WA_Fn-UseC_-Telco-Customer-Churn.csv.xls")
+
+# Show basic dataset information
+df.info()
+
+# Count values in the Churn column
+df["Churn"].value_counts()
+
+# Visualizing categorical features
+cols = ['gender', 'SeniorCitizen', "Partner", "Dependents"]
+plt.figure(figsize=(14,4))
+for i, col in enumerate(cols):
+    ax = plt.subplot(1, len(cols), i+1)
+    sns.countplot(x=col, data=df)
+    ax.set_title(f"{col}")
+plt.show()
+
+# Boxplot for MonthlyCharges by Churn
+sns.boxplot(x='Churn', y='MonthlyCharges', data=df)
+plt.show()
+
+# Visualizing categorical features about Churn
+cols = ['InternetService', "TechSupport", "OnlineBackup", "Contract"]
+plt.figure(figsize=(14,4))
+for i, col in enumerate(cols):
+    ax = plt.subplot(1, len(cols), i+1)
+    sns.countplot(x="Churn", hue=col, data=df)
+    ax.set_title(f"{col}")
+plt.show()
+
+# Convert TotalCharges to numeric
+df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+df.dropna(inplace=True)
+
+# Separating categorical features
+cat_features = df.drop(['customerID', 'TotalCharges', 'MonthlyCharges', 'SeniorCitizen', 'tenure'], axis=1)
+
+# Label encoding categorical features
+le = preprocessing.LabelEncoder()
+df_cat = cat_features.apply(le.fit_transform)
+
+# Merging numerical and categorical features
+num_features = df[['TotalCharges', 'MonthlyCharges', 'SeniorCitizen', 'tenure']]
+finaldf = pd.merge(num_features, df_cat, left_index=True, right_index=True)
+
+# Splitting dataset 
+X = finaldf.drop(['Churn'], axis=1)
+y = finaldf['Churn']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+# Handling class imbalance with SMOTE
+oversample = SMOTE(k_neighbors=5)
+X_train, y_train = oversample.fit_resample(X_train, y_train)
+
+# Training a RandomForestClassifier
+rf = RandomForestClassifier(random_state=46)
+rf.fit(X_train, y_train)
+
+# Evaluating model performance
+preds = rf.predict(X_test)
+print("Accuracy Score:", accuracy_score(preds, y_test)) 
